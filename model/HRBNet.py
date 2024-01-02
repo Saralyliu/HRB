@@ -23,73 +23,6 @@ def Weighted_GAP(supp_feat, mask):
     supp_feat = F.avg_pool2d(input=supp_feat, kernel_size=supp_feat.shape[-2:]) * feat_h * feat_w / area
     return supp_feat
 
-def get_vgg16_layer(model):
-    layer0_idx = range(0,7)
-    layer1_idx = range(7,14)
-    layer2_idx = range(14,24)
-    layer3_idx = range(24,34)
-    layer4_idx = range(34,43)
-    layers_0 = []
-    layers_1 = []
-    layers_2 = []
-    layers_3 = []
-    layers_4 = []
-    for idx in layer0_idx:
-        layers_0 += [model.features[idx]]
-    for idx in layer1_idx:
-        layers_1 += [model.features[idx]]
-    for idx in layer2_idx:
-        layers_2 += [model.features[idx]]
-    for idx in layer3_idx:
-        layers_3 += [model.features[idx]]
-    for idx in layer4_idx:
-        layers_4 += [model.features[idx]]  
-    layer0 = nn.Sequential(*layers_0) 
-    layer1 = nn.Sequential(*layers_1) 
-    layer2 = nn.Sequential(*layers_2) 
-    layer3 = nn.Sequential(*layers_3) 
-    layer4 = nn.Sequential(*layers_4)
-    return layer0,layer1,layer2,layer3,layer4
-class Pyramid(nn.Module):
-    def __init__(self):
-        super(Pyramid, self).__init__()
-        self.layer1_0 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.ReLU(),
-            nn.Dropout2d(p=0.5),
-        )
-        self.layer1_1 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=True),
-            nn.ReLU(),
-            nn.Dropout2d(p=0.5),
-        )
-        self.layer1_2 = nn.Sequential(nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=2, dilation=2, bias=True),
-                                      nn.ReLU(),
-                                      nn.Dropout2d(p=0.5)
-                                      )
-        self.layer1_3 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=4, dilation=4, bias=True),
-            nn.ReLU(),
-            nn.Dropout2d(p=0.5)
-        )
-        self.layer1_4 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=8, dilation=8, bias=True),
-            nn.ReLU(),
-            nn.Dropout2d(p=0.5)
-        )
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(1280, 256, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.ReLU(),
-            nn.Dropout2d(p=0.5)
-        )
-    def forward(self, out, feature_size):
-        global_feature = F.avg_pool2d(out, kernel_size=feature_size)
-        global_feature = self.layer1_0(global_feature)
-        global_feature = global_feature.expand(-1, -1, feature_size[0], feature_size[1])
-        out = torch.cat(
-            [global_feature, self.layer1_1(out), self.layer1_2(out), self.layer1_3(out), self.layer1_4(out)], dim=1)
-        out = self.layer2(out)
-        return out
 class Pyramid_Joint_module(nn.Module):
     def __init__(self):
         super(Pyramid_Joint_module, self).__init__()
@@ -326,13 +259,13 @@ class HRBNet(nn.Module):
             query_feat_4 = self.layer4(x_list)#48,119;96,60;192,30;384,15
 
 
-            # ======size60
+            # ======fix
             x0_h, x0_w = query_feat_4[1].size(2), query_feat_4[1].size(3)
             x1 = F.interpolate(query_feat_4[0], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
             x2 = F.interpolate(query_feat_4[2], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
             x3 = F.interpolate(query_feat_4[3], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
             query_feat_f60 = torch.cat([query_feat_4[1], x1, x2, x3], 1)
-            # ======size119
+            # ======high
             x0_h, x0_w = query_feat_4[0].size(2), query_feat_4[0].size(3)
             x1 = F.interpolate(query_feat_4[1], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
             x2 = F.interpolate(query_feat_4[2], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
@@ -396,14 +329,14 @@ class HRBNet(nn.Module):
                         x_list.append(supp_feat_3[i])
                 supp_feat_4 = self.layer4(x_list)
 
-                # ======size60
+                # ======fix
                 x0_h, x0_w = supp_feat_4[1].size(2), supp_feat_4[1].size(3)
                 x1 = F.interpolate(supp_feat_4[0], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
                 x2 = F.interpolate(supp_feat_4[2], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
                 x3 = F.interpolate(supp_feat_4[3], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
                 supp_feat_f60 = torch.cat([supp_feat_4[1], x1, x2, x3], 1)
                 final_supp_list60.append(supp_feat_f60)  # 60
-                #size120
+                #========high
                 x0_h, x0_w = supp_feat_4[0].size(2), supp_feat_4[0].size(3)
                 x1 = F.interpolate(supp_feat_4[1], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
                 x2 = F.interpolate(supp_feat_4[2], size=(x0_h, x0_w), mode='bilinear', align_corners=True)
